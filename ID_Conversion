@@ -1,0 +1,7 @@
+library(org.EcK12.eg.db)
+library(AnnotationDbi)
+
+# Read in the gene list from Supplementary Table 1
+f <- read.csv("EColi_gene_name.txt", header=TRUE, sep = "\t")
+gene.list <- as.data.frame(f)
+gene.list <- mapIds(org.EcK12.eg.db, keys=ff$geneid, column="ENTREZID", keytype="SYMBOL")
