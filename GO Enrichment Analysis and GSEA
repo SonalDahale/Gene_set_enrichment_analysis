@@ -1,0 +1,69 @@
+# Load required libraries
+library(clusterProfiler)  # For enrichment analysis
+library(enrichplot)       # For plotting enrichment results
+library(ggplot2)          # For custom visualizations
+library(DOSE)             # For dotplot visualization
+
+# Define the organism's annotation database
+organism <- "org.EcK12.eg.db"
+# Uncomment below line to install the organism database if not already installed
+# BiocManager::install(organism, character.only = TRUE)
+library(organism, character.only = TRUE)
+
+# Load your dataset
+df <- read.csv("differentially_expressed_genes_names.txt", header = TRUE, sep = "\t")
+
+# Extract and process gene data for analysis
+original_gene_list <- df$log2FoldChange
+names(original_gene_list) <- df$X  # Assume 'X' column contains gene symbols
+gene_list <- na.omit(original_gene_list)  # Remove NA values
+gene_list <- sort(gene_list, decreasing = TRUE)  # Sort genes in descending order
+
+# Section 1: GO Enrichment Analysis (enrichGO) ---------------------------------
+# Filter significant genes for enrichment analysis
+sig_genes_df <- subset(df, padj < 0.05)  # Significant genes with adjusted p-value < 0.05
+genes <- sig_genes_df$log2FoldChange  # Extract log2 fold change
+names(genes) <- sig_genes_df$X        # Use gene symbols as names
+genes <- na.omit(genes)               # Remove NA values
+genes <- names(genes)[abs(genes) > 2] # Filter genes with |log2FoldChange| > 2
+
+# Perform GO enrichment analysis
+go_enrich <- enrichGO(
+  gene = genes,
+  universe = names(gene_list),  # Background gene list
+  OrgDb = organism,
+  keyType = "SYMBOL",
+  readable = TRUE,
+  ont = "BP",  # Biological Process ontology
+  pvalueCutoff = 0.05,
+  qvalueCutoff = 0.10
+)
+
+# Plot results of GO enrichment analysis
+barplot(
+  go_enrich,
+  drop = TRUE,
+  showCategory = 10,
+  title = "GO Biological Pathways (enrichGO)",
+  font.size = 8
+)
+
+# Section 2: Gene Set Enrichment Analysis (gseGO) ------------------------------
+gse <- gseGO(
+  geneList = gene_list,  # Ranked list of all genes
+  ont = "ALL",           # Analyze all GO categories (BP, MF, CC)
+  keyType = "SYMBOL",
+  minGSSize = 3,
+  maxGSSize = 800,
+  pvalueCutoff = 0.05,
+  verbose = TRUE,
+  OrgDb = organism,
+  pAdjustMethod = "none"
+)
+
+# Plot results of GSEA
+dotplot(gse, showCategory = 10, split = ".sign") + facet_grid(. ~ .sign)
+
+# Save results for further analysis (optional)
+write.csv(as.data.frame(go_enrich), file = "go_enrich_results.csv")
+write.csv(as.data.frame(gse), file = "gse_results.csv")
